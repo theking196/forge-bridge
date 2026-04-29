@@ -108,19 +108,34 @@ fun BridgeDashboard(viewModel: MainViewModel = hiltViewModel()) {
 
                 Text("Active Providers", modifier = Modifier.padding(start = 16.dp, bottom = 8.dp), fontWeight = FontWeight.Bold, fontSize = 18.sp)
 
-                LazyColumn(modifier = Modifier.fillMaxSize()) {
-                    items(providers) { provider ->
-                        ListItem(
-                            headlineContent = { Text(provider.name) },
-                            supportingContent = { Text(provider.type.uppercase()) },
-                            trailingContent = {
-                                IconButton(onClick = { viewModel.deleteProvider(provider.id) }) {
-                                    Icon(Icons.Default.Delete, contentDescription = "Delete", tint = Color.Gray)
+                var selectedProvider by remember { mutableStateOf<ProviderEntity?>(null) }
+
+                if (selectedProvider == null) {
+                    LazyColumn(modifier = Modifier.fillMaxSize()) {
+                        items(providers) { provider ->
+                            ListItem(
+                                headlineContent = { Text(provider.name) },
+                                supportingContent = { Text(provider.type.uppercase()) },
+                                trailingContent = {
+                                    Row {
+                                        IconButton(onClick = { selectedProvider = provider }) {
+                                            Icon(Icons.Default.Chat, contentDescription = "Chat", tint = MaterialTheme.colorScheme.primary)
+                                        }
+                                        IconButton(onClick = { viewModel.deleteProvider(provider.id) }) {
+                                            Icon(Icons.Default.Delete, contentDescription = "Delete", tint = Color.Gray)
+                                        }
+                                    }
                                 }
-                            }
-                        )
-                        HorizontalDivider()
+                            )
+                            HorizontalDivider()
+                        }
                     }
+                } else {
+                    ChatScreen(
+                        provider = selectedProvider!!,
+                        viewModel = hiltViewModel(),
+                        onBack = { selectedProvider = null }
+                    )
                 }
             } else {
                 // Logs View
