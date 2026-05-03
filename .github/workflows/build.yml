@@ -2,9 +2,9 @@
 
 on:
   push:
-    branches: [ fix-gradle-wrapper ]
+    branches: [ main ]
   pull_request:
-    branches: [ fix-gradle-wrapper ]
+    branches: [ main ]
 
 jobs:
   build:
