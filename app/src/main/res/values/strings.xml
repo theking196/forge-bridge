@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Forge Bridge</string>
+    <string name="server_running">Server running on localhost:8745</string>
+    <string name="server_stopped">Server stopped</string>
+    <string name="action_start">Start Server</string>
+    <string name="action_stop">Stop Server</string>
+    <string name="notification_title">Forge Bridge — Running</string>
+    <string name="notification_text">localhost:8745 · AI bridge active</string>
+    <string name="perm_send_ai_request_desc">Allows external apps to send AI generation requests through Forge Bridge</string>
+</resources>

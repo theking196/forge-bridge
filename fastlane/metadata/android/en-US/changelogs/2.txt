@@ -1,0 +1,8 @@
+Version 0.2.0 — Settings UI
+
+• Provider management screen: connect, disconnect, and test any provider from within the app
+• Status indicators: green/gray dots, tier badges (API / Proxy / Browser), and DEFAULT badge
+• API key input dialog with password toggle
+• Ollama auto-detected at localhost:11434 — no key required
+• Set any connected provider as the default for generate requests
+• Back-navigation wired to MainActivity

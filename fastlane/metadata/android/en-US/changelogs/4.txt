@@ -1,0 +1,12 @@
+Version 0.4.0 — Forge OS Integration
+
+• mDNS advertisement: Forge OS and local tooling now discover the bridge automatically via `_forge-bridge._tcp` — no hardcoded port required
+• Broadcast intent receiver: Forge OS can send AI requests directly via `com.forge.ACTION_AI_REQUEST` intent with an optional reply PendingIntent
+• Permission activity: first-time Forge OS access prompts the user to Allow or Deny — decision is persisted in the encrypted vault
+• New API endpoints: POST /api/v1/forge/action (generate / list_providers / status), POST/DELETE /api/v1/forge/trust
+• Handshake response now includes mDNS config, intent action name, and current Forge OS trust status
+• Login detection hardened: URL pattern check now followed by DOM presence check (textarea / send button) before session is saved
+• Cookie restore in browser tier now handles both Netscape-format (tab-delimited) and raw `name=value` cookie strings
+• R8 minification enabled for release builds with comprehensive ProGuard rules
+• Resource shrinking enabled — release APK target ≤ 2 MB
+• Version bump: server version header now reports 0.4.0

@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- ── System permissions ─────────────────────────────────────────────── -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+
+    <!--
+        Forge OS integration permission.
+        Any app that wants to send AI requests to Forge Bridge must declare:
+            <uses-permission android:name="com.forge.bridge.permission.SEND_AI_REQUEST" />
+        Protection level is "normal" — user-facing trust is enforced at runtime
+        via PermissionActivity + VaultManager (forge_os_trusted flag).
+    -->
+    <permission
+        android:name="com.forge.bridge.permission.SEND_AI_REQUEST"
+        android:label="Send AI Requests"
+        android:description="@string/perm_send_ai_request_desc"
+        android:protectionLevel="normal" />
+
+    <uses-permission android:name="com.forge.bridge.permission.SEND_AI_REQUEST" />
+
+    <application
+        android:name=".ForgeBridgeApp"
+        android:allowBackup="true"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.ForgeBridge">
+
+        <!-- ── Activities ──────────────────────────────────────────────────── -->
+
+        <activity
+            android:name=".ui.MainActivity"
+            android:exported="true"
+            android:launchMode="singleTop">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <activity
+            android:name=".ui.providers.ProviderListActivity"
+            android:exported="false"
+            android:parentActivityName=".ui.MainActivity" />
+
+        <!-- WebView login for proxy-tier providers (ChatGPT, Claude Pro) -->
+        <activity
+            android:name=".ui.browser.WebLoginActivity"
+            android:exported="false"
+            android:configChanges="orientation|screenSize|keyboardHidden"
+            android:parentActivityName=".ui.providers.ProviderListActivity" />
+
+        <!--
+            Shown when Forge OS requests AI access for the first time.
+            Dialog-themed so it overlays whatever is on screen without a blank background.
+        -->
+        <activity
+            android:name=".ui.permissions.PermissionActivity"
+            android:exported="false"
+            android:theme="@style/Theme.MaterialComponents.DayNight.Dialog.Alert"
+            android:launchMode="singleTask" />
+
+        <!-- ── Services ────────────────────────────────────────────────────── -->
+
+        <service
+            android:name=".service.BridgeService"
+            android:enabled="true"
+            android:exported="false"
+            android:foregroundServiceType="dataSync" />
+
+        <!-- ── Receivers ───────────────────────────────────────────────────── -->
+
+        <receiver
+            android:name=".service.BootReceiver"
+            android:enabled="true"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+            </intent-filter>
+        </receiver>
+
+        <!--
+            Forge OS AI request receiver.
+            android:permission restricts senders to apps holding SEND_AI_REQUEST.
+            Runtime trust flag (VaultManager.isForgeOsTrusted) adds a second gate
+            that requires explicit user approval via PermissionActivity.
+        -->
+        <receiver
+            android:name=".service.ForgeIntentReceiver"
+            android:enabled="true"
+            android:exported="true"
+            android:permission="com.forge.bridge.permission.SEND_AI_REQUEST">
+            <intent-filter>
+                <action android:name="com.forge.ACTION_AI_REQUEST" />
+            </intent-filter>
+        </receiver>
+
+    </application>
+
+</manifest>

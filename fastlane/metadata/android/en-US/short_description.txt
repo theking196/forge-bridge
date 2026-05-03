@@ -1,0 +1,1 @@
+Local AI bridge for Forge OS — connects ChatGPT, Claude, Gemini and more to localhost.

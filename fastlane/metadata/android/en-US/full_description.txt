@@ -1,0 +1,51 @@
+Forge Bridge runs a lightweight local HTTP server on localhost:8745 that unifies access to every major AI provider — official API keys, ChatGPT Plus/Pro web sessions, Claude Pro/Team sessions, and headless browser automation — behind a single OpenAI-compatible REST endpoint.
+
+Any local tool (Forge OS, shell scripts, editors) that speaks HTTP can reach all your AI accounts without ever hardcoding API keys or leaking sessions to a third party.
+
+CORE PRINCIPLES
+
+• Tokens never leave the device — all traffic stays on 127.0.0.1
+• Zero cloud dependency — no relay, no sync service, no account required
+• Minimal APK — ~2 MB release build with R8 minification
+
+PROVIDERS SUPPORTED
+
+API Tier (official keys)
+• OpenAI — GPT-4o, GPT-4.1, o3-mini
+• Anthropic — Claude Opus, Sonnet, Haiku
+• Google Gemini — 2.5 Pro / Flash
+• OpenRouter — unified access to 200+ models
+• Ollama — any locally-running model on port 11434
+
+Proxy Tier (web session, no API key needed)
+• ChatGPT Plus / Pro — full access including web search and image generation
+• Claude Pro / Team — including Artifacts and extended context
+
+Browser Tier (WebView JS bridge — most resilient)
+• ChatGPT browser — same-origin fetch inside a headless WebView
+• Claude browser — same-origin fetch inside a headless WebView
+
+FORGE OS INTEGRATION
+
+• mDNS advertisement (`_forge-bridge._tcp`) — Forge OS discovers the bridge automatically on the local network
+• Broadcast intent receiver (`com.forge.ACTION_AI_REQUEST`) — Forge OS sends AI requests directly without knowing the port
+• Permission prompt — user explicitly grants or denies Forge OS access on first use
+
+HOW IT WORKS
+
+1. Start the service — a persistent foreground notification confirms the server is up
+2. Connect providers — enter API keys in the app, or tap Login for ChatGPT/Claude
+3. Call the API — any tool that can do HTTP POST to localhost:8745/api/v1/generate gets streaming AI responses
+
+SECURITY MODEL
+
+• HTTP server is bound to 127.0.0.1 — no inbound connections from the network are possible
+• API keys and session cookies are stored in Android Keystore-backed EncryptedSharedPreferences (AES-256-GCM)
+• Forge OS trust requires explicit user approval via a permission dialog
+• All requests are logged locally (audit log endpoint) — no telemetry is sent anywhere
+
+REQUIREMENTS
+
+• Android 8.0 (API 26) or higher
+• Internet permission (for outbound AI API calls)
+• Optional: ChatGPT Plus or Claude Pro subscription for proxy/browser tier
