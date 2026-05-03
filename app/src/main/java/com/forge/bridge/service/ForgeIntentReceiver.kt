@@ -4,7 +4,8 @@ import android.app.PendingIntent
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import android.os.Build
+import android.os.Binder
+import android.os.Process
 import android.util.Log
 import com.forge.bridge.ForgeBridgeApp
 import com.forge.bridge.ui.permissions.PermissionActivity
@@ -46,7 +47,7 @@ class ForgeIntentReceiver : BroadcastReceiver() {
             context.startActivity(
                 Intent(context, PermissionActivity::class.java).apply {
                     addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                    putExtra(PermissionActivity.EXTRA_REQUESTER, callingPackageSafe(intent))
+                    putExtra(PermissionActivity.EXTRA_REQUESTER, callingPackageSafe(context, intent))
                 }
             )
             return
@@ -110,13 +111,13 @@ class ForgeIntentReceiver : BroadcastReceiver() {
         }
     }
 
-    private fun callingPackageSafe(intent: Intent): String {
-        val fromSystem = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            getCallingPackage()
-        } else {
-            null
-        }
-        return fromSystem ?: intent.getStringExtra(EXTRA_REQUESTER_PACKAGE) ?: "unknown"
+    /** Caller package: explicit extra first, else UID → package via [Binder.getCallingUid]. */
+    private fun callingPackageSafe(context: Context, intent: Intent): String {
+        intent.getStringExtra(EXTRA_REQUESTER_PACKAGE)?.takeIf { it.isNotBlank() }?.let { return it }
+        val uid = Binder.getCallingUid()
+        if (uid == Process.INVALID_UID || uid == Process.myUid()) return "unknown"
+        val pkgs = context.packageManager.getPackagesForUid(uid)
+        return pkgs?.firstOrNull() ?: "unknown"
     }
 
     companion object {
