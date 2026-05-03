@@ -104,8 +104,11 @@ class WebLoginActivity : AppCompatActivity() {
     }
 
     private fun getLoginCheckJs(): String = when (providerId) {
-        "chatgpt-proxy" -> "document.querySelector('textarea') !== null || document.querySelector('[data-testid=\\"send-button\\"]') !== null"
-        "claude-proxy" -> "document.querySelector('textarea') !== null || document.querySelector('button[aria-label*=\\"Send\\"]') !== null"
+        // Identifier-only attribute selectors avoid nested-quote escaping for evaluateJavascript.
+        "chatgpt-proxy" ->
+            "document.querySelector('textarea') !== null || document.querySelector('[data-testid=send-button]') !== null"
+        "claude-proxy" ->
+            "document.querySelector('textarea') !== null || document.querySelector('button[aria-label*=Send]') !== null"
         else -> "false"
     }
 

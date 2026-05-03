@@ -171,8 +171,8 @@ class ChatGPTProxyAdapter(private val client: OkHttpClient) : ProxyProviderAdapt
                 } else {
                     val body = resp.body?.string() ?: ""
                     val email = runCatching {
-                        gson.fromJson(body, JsonObject::class.java)
-                            ["user"]?.asJsonObject?.get("email")?.asString
+                        val root = gson.fromJson(body, JsonObject::class.java)
+                        root.getAsJsonObject("user")?.get("email")?.asString
                     }.getOrNull() ?: "unknown"
                     TestResult(true, System.currentTimeMillis() - start, DEFAULT_MODEL,
                         "Session valid — $email")
@@ -203,7 +203,7 @@ class ChatGPTProxyAdapter(private val client: OkHttpClient) : ProxyProviderAdapt
             client.newCall(reqBuilder.build()).execute().use { resp ->
                 if (!resp.isSuccessful) return null
                 val body = resp.body?.string() ?: return null
-                gson.fromJson(body, JsonObject::class.java)["token"]?.asString
+                gson.fromJson(body, JsonObject::class.java).get("token")?.asString
             }
         } catch (e: Exception) {
             Log.d(TAG, "Sentinel token unavailable: ${e.message}")
@@ -218,7 +218,8 @@ class ChatGPTProxyAdapter(private val client: OkHttpClient) : ProxyProviderAdapt
         systemPrompt: String?,
     ): String {
         val allMessages = buildList {
-            if (!systemPrompt.isNullOrBlank()) add(chatMsg("system", systemPrompt))
+            val sys = systemPrompt
+            if (!sys.isNullOrBlank()) add(chatMsg("system", sys))
             addAll(messages.map { chatMsg(it.role, it.content) })
         }
         return gson.toJson(mapOf(

@@ -4,6 +4,7 @@ import android.app.PendingIntent
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.os.Build
 import android.util.Log
 import com.forge.bridge.ForgeBridgeApp
 import com.forge.bridge.ui.permissions.PermissionActivity
@@ -109,8 +110,14 @@ class ForgeIntentReceiver : BroadcastReceiver() {
         }
     }
 
-    private fun callingPackageSafe(intent: Intent): String =
-        callingPackage ?: intent.getStringExtra(EXTRA_REQUESTER_PACKAGE) ?: "unknown"
+    private fun callingPackageSafe(intent: Intent): String {
+        val fromSystem = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            getCallingPackage()
+        } else {
+            null
+        }
+        return fromSystem ?: intent.getStringExtra(EXTRA_REQUESTER_PACKAGE) ?: "unknown"
+    }
 
     companion object {
         const val ACTION_AI_REQUEST = "com.forge.ACTION_AI_REQUEST"

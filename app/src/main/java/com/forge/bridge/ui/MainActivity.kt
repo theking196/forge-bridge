@@ -6,6 +6,7 @@ import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import com.forge.bridge.ForgeBridgeApp
+import com.forge.bridge.R
 import com.forge.bridge.databinding.ActivityMainBinding
 import com.forge.bridge.service.ACTION_START
 import com.forge.bridge.service.ACTION_STOP

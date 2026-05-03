@@ -356,7 +356,7 @@ class BridgeServer(
 
     private fun jsonResponse(statusCode: Int, data: Any): Response {
         val resp = newFixedLengthResponse(
-            Status.lookup(statusCode) ?: Status.INTERNAL_ERROR,
+            Response.Status.lookup(statusCode) ?: Response.Status.INTERNAL_ERROR,
             "application/json", gson.toJson(data),
         )
         addCorsHeaders(resp)
@@ -370,9 +370,9 @@ class BridgeServer(
         resp.addHeader("Cache-Control", "no-store")
     }
 
-    private fun corsOk() = newFixedLengthResponse(Status.OK, "text/plain", "").also { addCorsHeaders(it) }
+    private fun corsOk() = newFixedLengthResponse(Response.Status.OK, "text/plain", "").also { addCorsHeaders(it) }
     private fun forbidden(msg: String) =
-        newFixedLengthResponse(Status.FORBIDDEN, "application/json", """{"error":"$msg"}""")
+        newFixedLengthResponse(Response.Status.FORBIDDEN, "application/json", """{"error":"$msg"}""")
 
     private fun isAllowedOrigin(o: String) =
         o.startsWith("http://localhost") || o.startsWith("http://127.0.0.1")
