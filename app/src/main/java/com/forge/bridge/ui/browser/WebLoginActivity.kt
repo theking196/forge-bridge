@@ -107,8 +107,14 @@ class WebLoginActivity : AppCompatActivity() {
         // Identifier-only attribute selectors avoid nested-quote escaping for evaluateJavascript.
         "chatgpt-proxy" ->
             "document.querySelector('textarea') !== null || document.querySelector('[data-testid=send-button]') !== null"
+        // Claude composer is often contenteditable; aria-label selector must quote the substring (CSS).
         "claude-proxy" ->
-            "document.querySelector('textarea') !== null || document.querySelector('button[aria-label*=Send]') !== null"
+            "(function(){var t=document.querySelector('textarea');if(t)return true;" +
+                "var ce=document.querySelector('[contenteditable=\"true\"]');" +
+                "if(ce)return true;" +
+                "if(document.querySelector('button[aria-label*=\"Send\"]'))return true;" +
+                "if(document.querySelector('[data-testid=\"send-button\"]'))return true;" +
+                "return document.querySelector('fieldset button[type=\"submit\"]')!=null;})()"
         else -> "false"
     }
 
@@ -120,9 +126,11 @@ class WebLoginActivity : AppCompatActivity() {
     }
 
     private fun isClaudeLoggedIn(url: String): Boolean {
-        return url.startsWith("https://claude.ai/new") ||
-                url.startsWith("https://claude.ai/chat") ||
-                url == "https://claude.ai/"
+        if (!url.startsWith("https://claude.ai/") && !url.startsWith("https://www.claude.ai/")) return false
+        val u = url.lowercase()
+        if ("/login" in u || "/authorize" in u || "/sso" in u || "claude.ai/login" in u) return false
+        // Any other claude.ai path is treated as the signed-in web app (chat, new, project, etc.).
+        return true
     }
 
     private fun onLoginSuccess() {
@@ -132,7 +140,14 @@ class WebLoginActivity : AppCompatActivity() {
 
         lifecycleScope.launch(Dispatchers.IO) {
             CookieManager.getInstance().flush()
-            val cookies = CookieManager.getInstance().getCookie(cookieDomain) ?: ""
+            var cookies = CookieManager.getInstance().getCookie(cookieDomain) ?: ""
+            // WebView may associate cookies with www vs apex — try both for Claude/ChatGPT.
+            if (cookies.isEmpty() && providerId == "claude-proxy") {
+                cookies = CookieManager.getInstance().getCookie("https://www.claude.ai") ?: ""
+            }
+            if (cookies.isEmpty() && providerId == "chatgpt-proxy") {
+                cookies = CookieManager.getInstance().getCookie("https://www.chatgpt.com") ?: ""
+            }
 
             if (cookies.isEmpty()) {
                 withContext(Dispatchers.Main) {
