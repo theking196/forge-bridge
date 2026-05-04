@@ -220,7 +220,7 @@ class ChatGPTProxyAdapter(private val client: OkHttpClient) : ProxyProviderAdapt
         val allMessages = buildList {
             val sys = systemPrompt
             if (!sys.isNullOrBlank()) add(chatMsg("system", sys))
-            addAll(messages.map { chatMsg(it.role, it.content) })
+            addAll(messages.map { chatMsg(it.role, it.content ?: "") })
         }
         return gson.toJson(mapOf(
             "action" to "next",
