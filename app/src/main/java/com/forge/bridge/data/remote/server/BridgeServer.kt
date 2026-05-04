@@ -138,7 +138,13 @@ class BridgeServer(
         val adapter = adapters.get(id)
             ?: return jsonResponse(503, mapOf("error" to "No adapter registered for: $id"))
         val apiKey = vault.getApiKey(id) ?: ""
-        val result = try { adapter.testConnection(apiKey) } catch (e: Exception) {
+        val result = try {
+            when (adapter) {
+                is com.forge.bridge.data.remote.adapters.ProxyProviderAdapter ->
+                    adapter.testConnectionWithCookies(apiKey, vault.getSessionToken(id) ?: "")
+                else -> adapter.testConnection(apiKey)
+            }
+        } catch (e: Exception) {
             Log.w(TAG, "Test failed for $id", e)
             return jsonResponse(200, mapOf("success" to false, "latencyMs" to 0,
                 "model" to "", "message" to (e.message ?: "Unknown error")))

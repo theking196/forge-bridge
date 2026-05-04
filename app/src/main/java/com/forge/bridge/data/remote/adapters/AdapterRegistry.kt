@@ -1,5 +1,6 @@
 package com.forge.bridge.data.remote.adapters
 
+import com.forge.bridge.data.local.VaultManager
 import com.forge.bridge.data.remote.browser.BrowserProviderManager
 import okhttp3.OkHttpClient
 
@@ -15,6 +16,7 @@ import okhttp3.OkHttpClient
 class AdapterRegistry(
     client: OkHttpClient,
     browserManager: BrowserProviderManager,
+    vaultManager: VaultManager,
 ) {
 
     private val adapters: Map<String, ProviderAdapter> = mapOf(
@@ -25,7 +27,7 @@ class AdapterRegistry(
         "openrouter-api"   to OpenRouterAdapter(client),
         "ollama-local"     to OllamaAdapter(client),
         // ── Proxy tier ────────────────────────────────────────────────────────
-        "chatgpt-proxy"    to ChatGPTProxyAdapter(client),
+        "chatgpt-proxy"    to ChatGPTProxyAdapter(client, vaultManager),
         "claude-proxy"     to ClaudeProxyAdapter(client),
         // ── Browser tier ──────────────────────────────────────────────────────
         "chatgpt-browser"  to BrowserTierAdapter("chatgpt-browser", browserManager),

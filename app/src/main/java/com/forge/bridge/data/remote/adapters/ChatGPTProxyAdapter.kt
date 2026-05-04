@@ -1,6 +1,7 @@
 package com.forge.bridge.data.remote.adapters
 
 import android.util.Log
+import com.forge.bridge.data.local.VaultManager
 import com.forge.bridge.data.model.GenerateRequest
 import com.forge.bridge.data.model.Message
 import com.google.gson.Gson
@@ -35,14 +36,16 @@ private const val DEFAULT_MODEL    = "gpt-4o"
  *
  * If any layer fails, the session is likely expired and re-login is required.
  */
-class ChatGPTProxyAdapter(private val client: OkHttpClient) : ProxyProviderAdapter {
+class ChatGPTProxyAdapter(
+    private val client: OkHttpClient,
+    private val vault: VaultManager,
+) : ProxyProviderAdapter {
 
     override val providerId = "chatgpt-proxy"
     private val gson = Gson()
     private val json = "application/json".toMediaType()
 
-    // Persistent device ID (ideally persisted across calls; held in memory here for simplicity)
-    private val deviceId = UUID.randomUUID().toString()
+    private val deviceId: String get() = vault.getOrCreateOaiDeviceId()
 
     override fun chat(request: GenerateRequest, apiKey: String): AdapterResult {
         throw AdapterException("ChatGPT proxy only supports streaming (stream=true).")
@@ -155,29 +158,42 @@ class ChatGPTProxyAdapter(private val client: OkHttpClient) : ProxyProviderAdapt
         }
     }
 
-    override fun testConnection(apiKey: String): TestResult {
+    override fun testConnection(apiKey: String): TestResult =
+        testConnectionWithCookies(apiKey, "")
+
+    override fun testConnectionWithCookies(apiKey: String, cookies: String): TestResult {
         val start = System.currentTimeMillis()
+        if (apiKey.isBlank() && cookies.isBlank()) {
+            return TestResult(false, 0L, DEFAULT_MODEL, "Not connected — login via Manage Providers")
+        }
         return try {
-            val req = Request.Builder()
+            val sessionReq = Request.Builder()
                 .url(SESSION_URL)
-                .header("Authorization", "Bearer $apiKey")
                 .header("User-Agent", USER_AGENT)
+                .apply {
+                    if (apiKey.isNotBlank()) header("Authorization", "Bearer $apiKey")
+                    if (cookies.isNotBlank()) header("Cookie", cookies)
+                }
                 .get()
                 .build()
-            client.newCall(req).execute().use { resp ->
+            val email = client.newCall(sessionReq).execute().use { resp ->
                 if (!resp.isSuccessful) {
-                    TestResult(false, System.currentTimeMillis() - start, DEFAULT_MODEL,
+                    return TestResult(false, System.currentTimeMillis() - start, DEFAULT_MODEL,
                         "Session invalid (HTTP ${resp.code}) — re-login required")
-                } else {
-                    val body = resp.body?.string() ?: ""
-                    val email = runCatching {
-                        val root = gson.fromJson(body, JsonObject::class.java)
-                        root.getAsJsonObject("user")?.get("email")?.asString
-                    }.getOrNull() ?: "unknown"
-                    TestResult(true, System.currentTimeMillis() - start, DEFAULT_MODEL,
-                        "Session valid — $email")
                 }
+                val body = resp.body?.string() ?: ""
+                runCatching {
+                    gson.fromJson(body, JsonObject::class.java)
+                        .getAsJsonObject("user")?.get("email")?.asString
+                }.getOrNull() ?: "unknown"
             }
+            val sentinel = fetchSentinelToken(apiKey, cookies)
+            if (sentinel.isNullOrBlank()) {
+                return TestResult(false, System.currentTimeMillis() - start, DEFAULT_MODEL,
+                    "Anti-bot token unavailable — ensure cookies were saved; try Login again")
+            }
+            TestResult(true, System.currentTimeMillis() - start, DEFAULT_MODEL,
+                "Ready — session + sentinel OK ($email)")
         } catch (e: Exception) {
             TestResult(false, System.currentTimeMillis() - start, DEFAULT_MODEL,
                 "Connection failed: ${e.message}")
@@ -195,6 +211,8 @@ class ChatGPTProxyAdapter(private val client: OkHttpClient) : ProxyProviderAdapt
             val reqBuilder = Request.Builder()
                 .url(SENTINEL_URL)
                 .header("User-Agent", USER_AGENT)
+                .header("Referer", "$BASE_URL/")
+                .header("Origin", BASE_URL)
                 .header("Oai-Device-Id", deviceId)
                 .post("{}".toRequestBody(json))
             if (accessToken.isNotBlank()) reqBuilder.header("Authorization", "Bearer $accessToken")

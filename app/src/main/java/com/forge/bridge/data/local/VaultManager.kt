@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.SharedPreferences
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
+import java.util.UUID
 
 /**
  * Stores API keys and session tokens in Android Keystore-backed encrypted storage.
@@ -57,6 +58,18 @@ class VaultManager(private val context: Context) {
         prefs.edit().remove(sessionKeyFor(providerId)).apply()
     }
 
+    /**
+     * Stable per-install UUID sent as `Oai-Device-Id` on ChatGPT backend calls.
+     * ChatGPT ties sentinel + conversation auth to a consistent device id.
+     */
+    fun getOrCreateOaiDeviceId(): String {
+        val existing = prefs.getString(KEY_OAI_DEVICE_ID, null)
+        if (existing != null) return existing
+        val id = UUID.randomUUID().toString()
+        prefs.edit().putString(KEY_OAI_DEVICE_ID, id).apply()
+        return id
+    }
+
     // ── Forge OS trust ────────────────────────────────────────────────────────
 
     /**
@@ -89,5 +102,6 @@ class VaultManager(private val context: Context) {
     companion object {
         private const val PREFS_FILE = "forge_bridge_vault"
         private const val KEY_FORGE_OS_TRUSTED = "forge_os_trusted"
+        private const val KEY_OAI_DEVICE_ID = "oai_device_id_chatgpt"
     }
 }

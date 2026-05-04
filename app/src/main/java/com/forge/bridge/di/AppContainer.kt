@@ -41,7 +41,7 @@ class AppContainer(context: Context) {
     }
 
     val adapterRegistry: AdapterRegistry by lazy {
-        AdapterRegistry(httpClient, browserProviderManager)
+        AdapterRegistry(httpClient, browserProviderManager, vaultManager)
     }
 
     val server: BridgeServer by lazy {
