@@ -151,7 +151,7 @@ class BrowserProviderManager(
                     webViewClient = object : WebViewClient() {
                         override fun onPageFinished(view: WebView, url: String) {
                             Log.d(TAG, "[$providerId] page loaded: $url")
-                            entry?.lastUsedUrl = url
+                            entries[providerId]?.lastUsedUrl = url
                             loaded.countDown()
                         }
                         override fun onReceivedError(view: WebView, request: WebResourceRequest?, error: WebResourceError?) {
