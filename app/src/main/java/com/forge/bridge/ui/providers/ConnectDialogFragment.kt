@@ -28,13 +28,25 @@ class ConnectDialogFragment : DialogFragment() {
         binding.tvTitle.text = "Connect ${providerName}"
 
         if (isOllama) {
-            // Ollama needs no API key — show a helpful message instead
-            binding.layoutApiKey.visibility = android.view.View.GONE
+            // Ollama can use local or remote URL
+            binding.layoutApiKey.hint = "Ollama URL (optional)"
+            binding.layoutApiKey.helperText = "Leave empty for localhost:11434, or enter remote URL"
+            // Show the Ollama hint with instructions
             binding.tvOllamaHint.visibility = android.view.View.VISIBLE
             binding.tvOllamaHint.text =
-                "Ollama runs locally and needs no API key.\n\nMake sure Ollama is running:\n  ollama serve\n\nThen tap Connect."
+                "Ollama can run locally or on a remote server.\n\n" +
+                "• Local: Leave empty (assumes localhost:11434)\n" +
+                "• Remote: Enter URL like http://192.168.1.x:11434\n\n" +
+                "Make sure Ollama is running:\n  ollama serve"
+            
+            // Pre-fill with existing URL if any
+            val existingUrl = vault.getApiKey(providerId)
+            if (!existingUrl.isNullOrBlank()) {
+                binding.etApiKey.setText(existingUrl)
+            }
         } else {
             binding.layoutApiKey.hint = "API Key for $providerName"
+            binding.tvOllamaHint.visibility = android.view.View.GONE
             // Allow submitting via keyboard done action
             binding.etApiKey.setOnEditorActionListener { _, actionId, _ ->
                 if (actionId == EditorInfo.IME_ACTION_DONE) { save(); true } else false
@@ -56,21 +68,37 @@ class ConnectDialogFragment : DialogFragment() {
     }
 
     private fun save() {
-        val apiKey = if (isOllama) "" else binding.etApiKey.text?.toString()?.trim() ?: ""
+        val inputText = binding.etApiKey.text?.toString()?.trim() ?: ""
 
-        if (!isOllama && apiKey.isEmpty()) {
+        if (!isOllama && inputText.isEmpty()) {
             binding.layoutApiKey.error = "API key is required"
             return
         }
+        
+        // For Ollama, validate URL format if provided
+        if (isOllama && inputText.isNotEmpty()) {
+            if (!inputText.startsWith("http://") && !inputText.startsWith("https://")) {
+                binding.layoutApiKey.error = "URL must start with http:// or https://"
+                return
+            }
+        }
+        
         binding.layoutApiKey.error = null
 
         val setAsDefault = binding.checkDefault.isChecked
 
-        vault.storeApiKey(providerId, apiKey)
+        // For Ollama, store the URL as the "API key"
+        vault.storeApiKey(providerId, inputText)
         db.updateProviderStatus(providerId, "connected", System.currentTimeMillis())
         if (setAsDefault) db.setDefaultProvider(providerId)
 
-        Toast.makeText(requireContext(), "$providerName connected", Toast.LENGTH_SHORT).show()
+        val message = if (isOllama) {
+            if (inputText.isEmpty()) "$providerName connected (localhost:11434)"
+            else "$providerName connected ($inputText)"
+        } else {
+            "$providerName connected"
+        }
+        Toast.makeText(requireContext(), message, Toast.LENGTH_SHORT).show()
         (activity as? ProviderListActivity)?.onProviderConnected()
         dismiss()
     }

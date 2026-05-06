@@ -43,10 +43,10 @@ class Database(context: Context) : SQLiteOpenHelper(context, DB_NAME, null, DB_V
                 """["anthropic/claude-opus-4","openai/gpt-4o","google/gemini-2.5-pro"]""",
                 """["chat","streaming","tools"]""",
                 "Unified model router — requires API key from openrouter.ai"),
-            ProviderSeed("ollama-local", "Ollama (Local)", "ollama", "api",
+            ProviderSeed("ollama-local", "Ollama (Local/Remote)", "ollama", "api",
                 """[]""",
                 """["chat","streaming"]""",
-                "Local Ollama instance — auto-detected on localhost:11434"),
+                "Ollama instance — local (localhost:11434) or remote. Connect with URL like http://192.168.1.x:11434"),
         ).forEach { db.insertIgnore(it) }
     }
 

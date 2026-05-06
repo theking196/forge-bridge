@@ -12,21 +12,28 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import java.io.OutputStream
 
 private const val TAG = "OllamaAdapter"
-private const val BASE_URL = "http://localhost:11434"
-private const val CHAT_ENDPOINT = "$BASE_URL/api/chat"
-private const val TAGS_ENDPOINT = "$BASE_URL/api/tags"
+private const val DEFAULT_BASE_URL = "http://localhost:11434"
 private const val DEFAULT_MODEL = "llama3.2"
 
 /**
- * Ollama adapter — talks to a local Ollama instance on localhost:11434.
+ * Ollama adapter — talks to a local or remote Ollama instance.
  * Ollama uses NDJSON (newline-delimited JSON), not SSE.
  * We normalize its output to the same SSE format as other adapters.
+ *
+ * The baseUrl can be customized to connect to remote Ollama instances
+ * (e.g., http://192.168.1.x:11434 for LAN servers).
  */
-class OllamaAdapter(private val client: OkHttpClient) : ProviderAdapter {
+class OllamaAdapter(
+    private val client: OkHttpClient,
+    val baseUrl: String = DEFAULT_BASE_URL
+) : ProviderAdapter {
 
     override val providerId = "ollama-local"
     private val gson = Gson()
     private val json = "application/json".toMediaType()
+    
+    private val chatEndpoint: String get() = "$baseUrl/api/chat"
+    private val tagsEndpoint: String get() = "$baseUrl/api/tags"
 
     // Ollama needs no API key — we still accept the param for interface consistency.
 
@@ -102,26 +109,26 @@ class OllamaAdapter(private val client: OkHttpClient) : ProviderAdapter {
         val start = System.currentTimeMillis()
         return try {
             // Ping the tags endpoint first (no model needed)
-            val tagsReq = Request.Builder().url(TAGS_ENDPOINT).get().build()
+            val tagsReq = Request.Builder().url(tagsEndpoint).get().build()
             client.newCall(tagsReq).execute().use { resp ->
                 if (!resp.isSuccessful) {
                     return TestResult(false, System.currentTimeMillis() - start, DEFAULT_MODEL,
-                        "Ollama not reachable (HTTP ${resp.code}) — is it running on localhost:11434?")
+                        "Ollama not reachable (HTTP ${resp.code}) — is it running at $baseUrl?")
                 }
             }
             val model = detectDefaultModel() ?: DEFAULT_MODEL
             TestResult(true, System.currentTimeMillis() - start, model,
-                "Ollama reachable — first model: $model")
+                "Ollama reachable at $baseUrl — first model: $model")
         } catch (e: Exception) {
             TestResult(false, System.currentTimeMillis() - start, DEFAULT_MODEL,
-                "Ollama not reachable — ${e.message}. Start with: ollama serve")
+                "Ollama not reachable at $baseUrl — ${e.message}. Start with: ollama serve")
         }
     }
 
     /** Returns the first model from Ollama's model list, or null if unreachable / empty. */
     fun detectDefaultModel(): String? {
         return try {
-            val req = Request.Builder().url(TAGS_ENDPOINT).get().build()
+            val req = Request.Builder().url(tagsEndpoint).get().build()
             client.newCall(req).execute().use { resp ->
                 if (!resp.isSuccessful) return null
                 val obj = gson.fromJson(resp.body?.string() ?: return null, JsonObject::class.java)
@@ -136,7 +143,7 @@ class OllamaAdapter(private val client: OkHttpClient) : ProviderAdapter {
     /** Returns all locally installed model names. */
     fun listLocalModels(): List<String> {
         return try {
-            val req = Request.Builder().url(TAGS_ENDPOINT).get().build()
+            val req = Request.Builder().url(tagsEndpoint).get().build()
             client.newCall(req).execute().use { resp ->
                 if (!resp.isSuccessful) return emptyList()
                 val obj = gson.fromJson(resp.body?.string() ?: return emptyList(), JsonObject::class.java)
@@ -172,7 +179,7 @@ class OllamaAdapter(private val client: OkHttpClient) : ProviderAdapter {
 
     private fun buildHttpRequest(bodyJson: String) =
         Request.Builder()
-            .url(CHAT_ENDPOINT)
+            .url(chatEndpoint)
             .header("Content-Type", "application/json")
             .post(bodyJson.toRequestBody(json))
             .build()

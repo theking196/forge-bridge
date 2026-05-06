@@ -140,6 +140,8 @@ class WebLoginActivity : AppCompatActivity() {
 
         lifecycleScope.launch(Dispatchers.IO) {
             CookieManager.getInstance().flush()
+            Thread.sleep(500) // Give cookies time to persist
+            
             var cookies = CookieManager.getInstance().getCookie(cookieDomain) ?: ""
             // WebView may associate cookies with www vs apex — try both for Claude/ChatGPT.
             if (cookies.isEmpty() && providerId == "claude-proxy") {
@@ -150,35 +152,68 @@ class WebLoginActivity : AppCompatActivity() {
             }
 
             if (cookies.isEmpty()) {
+                // Try alternative cookie extraction via JavaScript
                 withContext(Dispatchers.Main) {
-                    Toast.makeText(this@WebLoginActivity, "Could not extract cookies — try again", Toast.LENGTH_LONG).show()
-                    loginDetected = false
-                    binding.progressBar.visibility = View.GONE
+                    binding.webView.evaluateJavascript("document.cookie") { cookieStr ->
+                        // cookieStr is JSON-encoded, unwrap quotes
+                        val rawCookies = cookieStr.trim('"').replace("\\u003D", "=").replace("\\u003B", ";")
+                        if (rawCookies.isNotBlank() && rawCookies != "null") {
+                            lifecycleScope.launch(Dispatchers.IO) {
+                                processLoginSuccess(rawCookies)
+                            }
+                        } else {
+                            Toast.makeText(this@WebLoginActivity, "Could not extract cookies — try again", Toast.LENGTH_LONG).show()
+                            loginDetected = false
+                            binding.progressBar.visibility = View.GONE
+                        }
+                    }
                 }
-                return@launch
+            } else {
+                processLoginSuccess(cookies)
             }
-
-            val extraToken = when (providerId) {
-                "chatgpt-proxy" -> fetchChatGPTAccessToken(cookies)
-                "claude-proxy" -> fetchClaudeOrgId(cookies)
-                else -> null
-            }
-
-            vault.storeSessionToken(providerId, cookies)
-            if (extraToken != null) vault.storeApiKey(providerId, extraToken)
-            db.updateProviderStatus(providerId, "connected", System.currentTimeMillis())
-
-            val browserCounterpart = when (providerId) {
-                "chatgpt-proxy" -> "chatgpt-browser"
-                "claude-proxy" -> "claude-browser"
-                else -> null
-            }
-            browserCounterpart?.let { db.updateProviderStatus(it, "connected", System.currentTimeMillis()) }
-
+        }
+    }
+    
+    private suspend fun processLoginSuccess(cookies: String) = withContext(Dispatchers.IO) {
+        if (cookies.isEmpty()) {
             withContext(Dispatchers.Main) {
-                setResult(RESULT_OK)
-                finish()
+                Toast.makeText(this@WebLoginActivity, "Could not extract cookies — try again", Toast.LENGTH_LONG).show()
+                loginDetected = false
+                binding.progressBar.visibility = View.GONE
             }
+            return@withContext
+        }
+
+        Log.d(TAG, "[$providerId] Extracted cookies (${cookies.length} chars)")
+        
+        val extraToken = when (providerId) {
+            "chatgpt-proxy" -> fetchChatGPTAccessToken(cookies)
+            "claude-proxy" -> fetchClaudeOrgId(cookies)
+            else -> null
+        }
+
+        vault.storeSessionToken(providerId, cookies)
+        if (extraToken != null) {
+            Log.d(TAG, "[$providerId] Stored extra token: ${extraToken.take(20)}...")
+            vault.storeApiKey(providerId, extraToken)
+        } else {
+            Log.w(TAG, "[$providerId] Could not fetch extra token")
+        }
+        db.updateProviderStatus(providerId, "connected", System.currentTimeMillis())
+
+        val browserCounterpart = when (providerId) {
+            "chatgpt-proxy" -> "chatgpt-browser"
+            "claude-proxy" -> "claude-browser"
+            else -> null
+        }
+        browserCounterpart?.let { 
+            db.updateProviderStatus(it, "connected", System.currentTimeMillis())
+            Log.d(TAG, "[$providerId] Also activated browser tier: $it")
+        }
+
+        withContext(Dispatchers.Main) {
+            setResult(RESULT_OK)
+            finish()
         }
     }
 
